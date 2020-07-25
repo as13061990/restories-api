@@ -1,0 +1,11 @@
+<?php
+return array(
+	'db_host' => 'db_host',
+	'db_name' => 'db_name',
+	'db_user' => 'db_user',
+	'db_pass' => 'db_pass',
+	'group_id' => group_id,
+	'group_token' => 'group_token',
+	'secret_key' => 'secret_key'
+);
+?>
