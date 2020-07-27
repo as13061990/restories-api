@@ -231,6 +231,197 @@ class API extends \Basic\Basic {
 		);
 	}
 
+	// добавление конкурса
+	public static function addContest() {
+
+		$db = parent::getDb();
+
+		parent::search($_POST['search'], $_POST['vk_user_id']);
+
+		$error = false;
+		$errorType = null;
+		$errorParameter = null;
+
+		$settingsContest = json_decode($_POST['settingsContest'], true);
+		$settingsStory = json_decode($_POST['settingsStory'], true);
+		$settingsPublicWall = json_decode($_POST['settingsPublicWall'], true);
+
+		// проверяем подключенна ли группы и является ли юзер админом
+		parent::checkConnectedGroups($_POST['group_id'], $_POST['vk_user_id']);
+
+		// проверка передаваемых параметров
+		if (gettype($settingsContest['nameContest']) !== 'string' || strlen($settingsContest['nameContest']) < 10) {
+			$error = true;
+			$errorType = 7;
+			$errorParameter = 'nameContest';
+		}
+
+		if (!filter_var($settingsContest['contestBanner'], FILTER_VALIDATE_URL)) {
+			$error = true;
+			$errorType = 7;
+			$errorParameter = 'contestBanner';
+		}
+
+		if (!filter_var($settingsContest['directoryIcon'], FILTER_VALIDATE_URL)) {
+			$error = true;
+			$errorType = 7;
+			$errorParameter = 'directoryIcon';
+		}
+
+		if (gettype($settingsContest['titleContes']) !== 'string' || strlen($settingsContest['titleContes']) < 10) {
+			$error = true;
+			$errorType = 7;
+			$errorParameter = 'titleContes';
+		}
+
+		if (gettype($settingsContest['descriptionContest']) !== 'string' || strlen($settingsContest['descriptionContest']) < 100) {
+			$error = true;
+			$errorType = 7;
+			$errorParameter = 'titleContes';
+		}
+
+		if (!is_array($settingsContest['namesPrizes'])) {
+			$error = true;
+			$errorType = 7;
+			$errorParameter = 'namesPrizes';
+		}
+
+		if (is_array($settingsContest['namesPrizes'])) {
+
+			$count = count($settingsContest['namesPrizes']);
+
+			if ($count === 0) {
+
+				$error = true;
+				$errorType = 7;
+				$errorParameter = 'namesPrizes';
+
+			} else {
+
+				for ($i = 0; $i < $count; $i++) {
+
+					$namePrize = $settingsContest['namesPrizes'][$i];
+
+					if (gettype($namePrize) !== 'string' || strlen($namePrize) < 1) {
+						$error = true;
+						$errorType = 7;
+						$errorParameter = 'namePrize';
+						break;
+					}
+
+				}
+
+			}
+
+		}
+
+		if (gettype($settingsContest['idTipic']) !== 'integer') {
+			$error = true;
+			$errorType = 7;
+			$errorParameter = 'idTipic';
+		}
+		
+		if (gettype($settingsContest['conditionsPostStory']) !== 'boolean') {
+			$error = true;
+			$errorType = 7;
+			$errorParameter = 'conditionsPostStory';
+		}
+
+		if (gettype($settingsContest['conditionsSubscribeToGroup']) !== 'boolean') {
+			$error = true;
+			$errorType = 7;
+			$errorParameter = 'conditionsSubscribeToGroup';
+		}
+
+		if (!filter_var($settingsStory['backgroundStory'], FILTER_VALIDATE_URL)) {
+			$error = true;
+			$errorType = 7;
+			$errorParameter = 'backgroundStory';
+		}
+
+		if (!filter_var($settingsPublicWall['backgroundWall'], FILTER_VALIDATE_URL)) {
+			$error = true;
+			$errorType = 7;
+			$errorParameter = 'backgroundWall';
+		}
+
+		// если все параметры прошли проверку, то добавляем конкурс
+		if (!$error) {
+
+			$id = $db->query("INSERT IGNORE INTO contests SET 
+			group_id = {?},
+			user_id = {?},
+			nameContest = {?},
+			contestBanner = {?},
+			directoryIcon = {?},
+			timeEndContest = {?},
+			dateEndContest = {?},
+			titleContes = {?},
+			descriptionContest = {?},
+			idTipic = {?},
+			conditionsPostStory = {?},
+			conditionsPostWall = {?},
+			conditionsSubscribeToGroup = {?},
+			conditionsSubscribeToNotifications = {?},
+			backgroundType = {?},
+			backgroundStory = {?},
+			movingBackground = {?},
+			buttonStory = {?},
+			degreeRotation = {?},
+			stickerWidth = {?},
+			valueVertical = {?},
+			valueHorizontal = {?},
+			valueAlignment = {?},
+			textWall = {?},
+			backgroundWall = {?}",
+			array(
+				$_POST['group_id'],
+				$_POST['vk_user_id'],
+				$settingsContest['nameContest'],
+				$settingsContest['contestBanner'],
+				$settingsContest['directoryIcon'],
+				$settingsContest['timeEndContest'],
+				$settingsContest['dateEndContest'],
+				$settingsContest['titleContes'],
+				$settingsContest['descriptionContest'],
+				$settingsContest['idTipic'],
+				$settingsContest['conditionsPostStory'],
+				$settingsContest['conditionsPostWall'],
+				$settingsContest['conditionsSubscribeToGroup'],
+				$settingsContest['conditionsSubscribeToNotifications'],
+				$settingsStory['backgroundType'],
+				$settingsStory['backgroundStory'],
+				$settingsStory['movingBackground'],
+				$settingsStory['buttonStory'],
+				$settingsStory['degreeRotation'],
+				$settingsStory['stickerWidth'],
+				$settingsStory['valueVertical'],
+				$settingsStory['valueHorizontal'],
+				$settingsStory['valueAlignment'],
+				$settingsPublicWall['textWall'],
+				$settingsPublicWall['backgroundWall']
+			));
+
+			$count = count($settingsContest['namesPrizes']);
+
+			for ($i = 0; $i < $count; $i++) {
+
+				$name = $settingsContest['namesPrizes'][$i];
+				$db->query("INSERT IGNORE INTO names_prizes SET contest_id = {?}, name = {?}", array($id, $name));
+
+			}
+
+		}
+
+		echo json_encode(
+			array(
+				'error' => $error,
+				'error_type' => $errorType,
+				'error_parameter' => $errorParameter
+			)
+		);
+	}
+
 	
 	// страница не существует
 	public static function notFound() {

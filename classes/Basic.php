@@ -26,11 +26,15 @@ class Basic extends \DB\Db {
 
 		$query_params = []; 
 		parse_str(parse_url($search, PHP_URL_QUERY), $query_params);
-		$sign_params = []; 
+		$sign_params = [];
+
 		foreach ($query_params as $name => $value) {
+
 			if (strpos($name, 'vk_') !== 0) continue;
-			$sign_params[$name] = $value; 
+			$sign_params[$name] = $value;
+			
 		}
+		
 		ksort($sign_params);
 		$sign_params_query = http_build_query($sign_params);
 		$sign = rtrim(strtr(base64_encode(hash_hmac('sha256', $sign_params_query, $config['secret_key'], true)), '+/', '-_'), '=');
@@ -112,6 +116,29 @@ class Basic extends \DB\Db {
 				array(
 					'error' => true,
 					'error_type' => 3
+				)
+			);
+			exit();
+
+		}
+
+	}
+
+	
+	// проверяем подключенна ли группы и является ли юзер админом
+	public static function checkConnectedGroups($group, $user) {
+
+		$db = parent::getDb();
+
+		$group = $db->select("SELECT * FROM connected_groups WHERE group_id = {?} AND user_id = {?}",
+		array($group, $user));
+
+		if (!$group || $group === null || count($group) === 0) {
+
+			echo json_encode(
+				array(
+					'error' => true,
+					'error_type' => 6
 				)
 			);
 			exit();
