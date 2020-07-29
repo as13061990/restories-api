@@ -268,16 +268,16 @@ class API extends \Basic\Basic {
 			$errorParameter = 'directoryIcon';
 		}
 
-		if (gettype($settingsContest['titleContes']) !== 'string' || strlen($settingsContest['titleContes']) < 10) {
+		if (gettype($settingsContest['titleContest']) !== 'string' || strlen($settingsContest['titleContest']) < 10) {
 			$error = true;
 			$errorType = 7;
-			$errorParameter = 'titleContes';
+			$errorParameter = 'titleContest';
 		}
 
 		if (gettype($settingsContest['descriptionContest']) !== 'string' || strlen($settingsContest['descriptionContest']) < 100) {
 			$error = true;
 			$errorType = 7;
-			$errorParameter = 'titleContes';
+			$errorParameter = 'descriptionContest';
 		}
 
 		if (!is_array($settingsContest['namesPrizes'])) {
@@ -339,7 +339,7 @@ class API extends \Basic\Basic {
 			$errorParameter = 'backgroundStory';
 		}
 
-		if (!filter_var($settingsPublicWall['backgroundWall'], FILTER_VALIDATE_URL)) {
+		if ($settingsContest['conditionsPostWall'] && strpos($settingsPublicWall['backgroundWall'], 'photo') === false) {
 			$error = true;
 			$errorType = 7;
 			$errorParameter = 'backgroundWall';
@@ -356,7 +356,7 @@ class API extends \Basic\Basic {
 			directoryIcon = {?},
 			timeEndContest = {?},
 			dateEndContest = {?},
-			titleContes = {?},
+			titleContest = {?},
 			descriptionContest = {?},
 			idTipic = {?},
 			conditionsPostStory = {?},
@@ -382,7 +382,7 @@ class API extends \Basic\Basic {
 				$settingsContest['directoryIcon'],
 				$settingsContest['timeEndContest'],
 				$settingsContest['dateEndContest'],
-				$settingsContest['titleContes'],
+				$settingsContest['titleContest'],
 				$settingsContest['descriptionContest'],
 				$settingsContest['idTipic'],
 				$settingsContest['conditionsPostStory'],
@@ -404,6 +404,13 @@ class API extends \Basic\Basic {
 
 			$count = count($settingsContest['namesPrizes']);
 
+			if ($settingsPublicWall['textWall'] === '' || $settingsPublicWall['textWall'] === null || !$settingsPublicWall['textWall']) {
+
+				$text = 'Участвуй по ссылке: https://vk.com/app7486100#' . $id;
+				$db->query("UPDATE contests SET textWall = {?} WHERE id = {?}", array($text, $id));
+
+			}
+
 			for ($i = 0; $i < $count; $i++) {
 
 				$name = $settingsContest['namesPrizes'][$i];
@@ -422,6 +429,165 @@ class API extends \Basic\Basic {
 		);
 	}
 
+
+	// конкурсы группы
+	public static function getContestsGroup() {
+
+		$db = parent::getDb();
+
+		parent::search($_POST['search'], $_POST['vk_user_id']);
+
+		$error = false;
+		$errorType = null;
+		$contests = array();
+
+		$result = $db->select("SELECT
+		contests.id,
+		contests.nameContest,
+		contests.directoryIcon,
+		contests.timeEndContest,
+		contests.dateEndContest
+		FROM contests WHERE contests.group_id = {?}",
+		array($_POST['group_id']));
+
+		$count = count($result);
+
+		for ($i = 0; $i < $count; $i++) {
+
+			$countParticipants = $db->select("SELECT COUNT(*) FROM participants WHERE contest_id = {?}",
+			array($result[$i]['id']))[0]['COUNT(*)'];
+
+			$topPrize = $db->select("SELECT name FROM names_prizes WHERE contest_id = {?}",
+			array($result[$i]['id']))[0]['name'];
+
+			$active = true;
+			$time = $result[$i]['dateEndContest'] . ' ' . $result[$i]['timeEndContest'];
+			$date = strtotime($time);
+
+			if (time() >= $date) $active = false;
+
+			$contest = array(
+				'idContest' => (int) $result[$i]['id'],
+				'nameContest' => $result[$i]['nameContest'],
+				'directoryIcon' => $result[$i]['directoryIcon'],
+				'countParticipants' => (int) $countParticipants,
+				'topPrize' => $topPrize,
+				'activeContest' => $active
+			);
+
+			array_push($contests, $contest);
+
+		}
+
+		echo json_encode(
+			array(
+				'error' => $error,
+				'error_type' => $errorType,
+				'contests' => $contests
+			)
+		);
+	}
+	
+
+	// страница не существует
+	public static function getDataContest() {
+
+		$db = parent::getDb();
+
+		parent::search($_POST['search'], $_POST['vk_user_id']);
+
+		$error = false;
+		$errorType = null;
+		$contest = array();
+
+		$result = $db->select("SELECT * FROM contests WHERE id = {?}", array($_POST['contest_id']));
+
+		if (is_array($result) && count($result) > 0) {
+
+			$active = true;
+			$time = $result[0]['dateEndContest'] . ' ' . $result[0]['timeEndContest'];
+			$date = strtotime($time);
+
+			if (time() >= $date) $active = false;
+
+			$settingsContest = array(
+				'nameContest' => $result[0]['nameContest'],
+				'contestBanner' => $result[0]['contestBanner'],
+				'directoryIcon' => $result[0]['directoryIcon'],
+				'timeEndContest' => $result[0]['timeEndContest'],
+				'dateEndContest' => $result[0]['dateEndContest'],
+				'titleContest' => $result[0]['titleContest'],
+				'descriptionContest' => $result[0]['descriptionContest'],
+				'idTipic' => (int) $result[0]['idTipic'],
+				'conditionsPostStory' => (boolean) $result[0]['conditionsPostStory'],
+				'conditionsPostWall' => (boolean) $result[0]['conditionsPostWall'],
+				'conditionsSubscribeToGroup' => (boolean) $result[0]['conditionsSubscribeToGroup'],
+				'conditionsSubscribeToNotifications' => (boolean) $result[0]['conditionsSubscribeToNotifications']
+			);
+
+			// призы или победители
+			if ($active) {
+
+				$prizes = $db->select("SELECT name FROM names_prizes WHERE contest_id = {?}",
+				array($_POST['contest_id']));
+
+				$count = count($prizes);
+				$namesPrizes = array();
+
+				for ($i = 0; $i < $count; $i++) {
+					array_push($namesPrizes, $prizes[$i]['name']);
+				}
+
+				$settingsContest['namesPrizes'] = $namesPrizes;
+
+			} else {
+
+				// НЕ ЗАБЫТЬ СДЕЛАТЬ ПОБЕДИТЕЛЕЙ !!!
+				$settingsContest['winners'] = array('тут будут победители', 'id победителя за второе', 'и т.д.');
+
+			}
+
+			$settingsStory = array(
+				'backgroundType' => $result[0]['backgroundType'],
+				'backgroundStory' => $result[0]['backgroundStory'],
+				'movingBackground' => (boolean) $result[0]['movingBackground'],
+				'buttonStory' => $result[0]['buttonStory'],
+				'degreeRotation' => (int) $result[0]['degreeRotation'],
+				'stickerWidth' => (int) $result[0]['stickerWidth'],
+				'valueVertical' => (int) $result[0]['valueVertical'],
+				'valueHorizontal' => (int) $result[0]['valueHorizontal'],
+				'valueAlignment' => (int) $result[0]['valueAlignment']
+			);
+
+			$settingsPublicWall = array(
+				'textWall' => $result[0]['textWall'],
+				'backgroundWall' => $result[0]['backgroundWall']
+			);
+
+			$contest = array(
+				'settingsContest' => $settingsContest,
+				'settingsStory' => $settingsStory,
+				'settingsPublicWall' => $settingsPublicWall,
+				'active' => $active
+			);
+
+
+		} else {
+
+			$error = true;
+			$errorType = 8;
+
+		}
+
+		echo json_encode(
+			array(
+				'error' => $error,
+				'error_type' => $errorType,
+				'contest' => $contest
+			)
+		);
+	}
+	
 	
 	// страница не существует
 	public static function notFound() {

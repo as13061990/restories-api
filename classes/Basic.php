@@ -130,10 +130,10 @@ class Basic extends \DB\Db {
 
 		$db = parent::getDb();
 
-		$group = $db->select("SELECT * FROM connected_groups WHERE group_id = {?} AND user_id = {?}",
+		$result = $db->select("SELECT * FROM connected_groups WHERE group_id = {?} AND user_id = {?}",
 		array($group, $user));
 
-		if (!$group || $group === null || count($group) === 0) {
+		if (!$result || $result === null || count($result) === 0) {
 
 			echo json_encode(
 				array(
