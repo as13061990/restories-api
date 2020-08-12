@@ -148,6 +148,36 @@ class Basic extends \DB\Db {
 	}
 
 
+	// провека выполненных условий конкурса
+	public static function checkContestCondition($contest, $user) {
+
+		$db = parent::getDb();
+
+		$check = true;
+		$conditionsPostStory = (boolean) $contest['conditionsPostStory'];
+		$conditionsPostWall = (boolean) $contest['conditionsPostWall'];
+		$conditionsSubscribeToGroup = (boolean) $contest['conditionsSubscribeToGroup'];
+		$conditionsSubscribeToNotifications = (boolean) $contest['conditionsSubscribeToNotifications'];
+
+		$participant = $db->select("SELECT * FROM participants WHERE contest_id = {?} AND user_id = {?}",
+		array($contest['id'], $user))[0];
+
+		if ($conditionsPostStory && !(boolean) $participant['conditionStories']) $check = false;
+		if ($conditionsSubscribeToGroup && !(boolean) $participant['conditionSubscribeToGroup']) $check = false;
+		if ($conditionsSubscribeToNotifications && !(boolean) $participant['conditionSubscribeToNotifications']) $check = false;
+		if ($conditionsPostWall && $participant['conditionWall'] === 0) $check = false;
+
+
+		if ($check) {
+
+			$db->query("UPDATE participants SET done = {?} WHERE contest_id = {?} AND user_id = {?}",
+			array(true, $contest['id'], $user));
+
+		}
+
+	}
+
+
 	// функция для тестового логирования в файл
 	public static function log($text) {
 		file_put_contents('logs.txt', $text."\n", FILE_APPEND);

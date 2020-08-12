@@ -16,8 +16,9 @@ RouterLite::addRoute('/connectGroup', 'API/connectGroup');
 RouterLite::addRoute('/getConnectedGroups', 'API/getConnectedGroups');
 RouterLite::addRoute('/loadImage', 'API/loadImage');
 RouterLite::addRoute('/addContest', 'API/addContest');
-RouterLite::addRoute('/getContestsGroup', 'API/getContestsGroup');
+RouterLite::addRoute('/getContests', 'API/getContests');
 RouterLite::addRoute('/getDataContest', 'API/getDataContest');
+RouterLite::addRoute('/sendConditionStatus', 'API/sendConditionStatus');
 
 
 RouterLite::addRoute('/notFound', 'API/notFound');

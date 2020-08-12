@@ -315,11 +315,11 @@ class API extends \Basic\Basic {
 
 		}
 
-		if (gettype($settingsContest['idTipic']) !== 'integer') {
+		if ($settingsContest['idTipic'] === '') {
 			$error = true;
 			$errorType = 7;
 			$errorParameter = 'idTipic';
-		}
+		} else $settingsContest['idTipic'] = (int) $settingsContest['idTipic'];
 		
 		if (gettype($settingsContest['conditionsPostStory']) !== 'boolean') {
 			$error = true;
@@ -409,6 +409,11 @@ class API extends \Basic\Basic {
 				$text = 'Участвуй по ссылке: https://vk.com/app7486100#' . $id;
 				$db->query("UPDATE contests SET textWall = {?} WHERE id = {?}", array($text, $id));
 
+			} else {
+
+				$text = $settingsPublicWall['textWall'] . ' \n Участвуй по ссылке: https://vk.com/app7486100#' . $id;
+				$db->query("UPDATE contests SET textWall = {?} WHERE id = {?}", array($text, $id));
+
 			}
 
 			for ($i = 0; $i < $count; $i++) {
@@ -430,8 +435,8 @@ class API extends \Basic\Basic {
 	}
 
 
-	// конкурсы группы
-	public static function getContestsGroup() {
+	// конкурсы
+	public static function getContests() {
 
 		$db = parent::getDb();
 
@@ -440,22 +445,29 @@ class API extends \Basic\Basic {
 		$error = false;
 		$errorType = null;
 		$contests = array();
+		$result = array();
 
-		$result = $db->select("SELECT
-		contests.id,
-		contests.nameContest,
-		contests.directoryIcon,
-		contests.timeEndContest,
-		contests.dateEndContest
-		FROM contests WHERE contests.group_id = {?}",
-		array($_POST['group_id']));
+		if ($_POST['type'] === 'group') {
+
+			$result = $db->select("SELECT * FROM contests WHERE group_id = {?}", array($_POST['group_id']));
+
+		} else if ($_POST['type'] === 'topic') {
+
+			$result = $db->select("SELECT * FROM contests WHERE idTipic = {?}", array($_POST['topic_id']));
+
+		} else if ($_POST['type'] === 'user') {
+
+			$result = $db->select("SELECT * FROM contests WHERE user_id = {?}", array($_POST['user_id']));
+
+		}
+		
 
 		$count = count($result);
 
 		for ($i = 0; $i < $count; $i++) {
 
-			$countParticipants = $db->select("SELECT COUNT(*) FROM participants WHERE contest_id = {?}",
-			array($result[$i]['id']))[0]['COUNT(*)'];
+			$countParticipants = $db->select("SELECT COUNT(*) FROM participants WHERE contest_id = {?} AND done = {?}",
+			array($result[$i]['id'], true))[0]['COUNT(*)'];
 
 			$topPrize = $db->select("SELECT name FROM names_prizes WHERE contest_id = {?}",
 			array($result[$i]['id']))[0]['name'];
@@ -588,6 +600,90 @@ class API extends \Basic\Basic {
 		);
 	}
 	
+
+	// статусы выполнения условий конкурсов
+	public static function sendConditionStatus() {
+
+		$db = parent::getDb();
+
+		parent::search($_POST['search'], $_POST['vk_user_id']);
+
+		$error = false;
+		$errorType = null;
+
+		if ($_POST['nameStatus'] === 'conditionStories' ||
+			$_POST['nameStatus'] === 'conditionWall' ||
+			$_POST['nameStatus'] === 'conditionSubscribeToGroup' ||
+			$_POST['nameStatus'] === 'conditionSubscribeToNotifications'
+			) {
+
+			$contest = $db->select("SELECT * FROM contests WHERE id = {?}", array($_POST['idContest']));
+
+			if (is_array($contest) && count($contest) > 0) {
+
+				$participant = $db->select("SELECT * FROM participants WHERE contest_id = {?} AND user_id = {?}",
+				array($_POST['idContest'], $_POST['vk_user_id']));
+
+				// есть ли юзер в таблице участников
+				if (count($participant) === 0) {
+
+					$db->query("INSERT IGNORE INTO participants SET contest_id = {?}, user_id = {?}",
+					array($_POST['idContest'], $_POST['vk_user_id']));
+
+				}
+
+				if ($_POST['nameStatus'] !== 'conditionWall') { 
+
+					$status = $_POST['nameStatus'];
+					$db->query("UPDATE participants SET $status = {?} WHERE contest_id = {?} AND user_id = {?}",
+					array(true, $_POST['idContest'], $_POST['vk_user_id']));
+				
+					// проверка условий
+					parent::checkContestCondition($contest[0], $_POST['vk_user_id']);
+
+				} else {
+
+					if ($_POST['valueStatus'] > 0) {
+						
+						$db->query("UPDATE participants SET conditionWall = {?} WHERE contest_id = {?} AND user_id = {?}",
+						array($_POST['valueStatus'], $_POST['idContest'], $_POST['vk_user_id']));
+
+						// проверка условий
+						parent::checkContestCondition($contest[0], $_POST['vk_user_id']);
+
+					} else {
+
+						$error = true;
+						$errorType = 10;
+	
+					}
+
+				}
+
+			} else {
+
+				$error = true;
+				$errorType = 8;
+			
+			}
+
+		} else {
+
+			$error = true;
+			$errorType = 9;
+
+		}
+
+		echo json_encode(
+			array(
+				'error' => $error,
+				'test' => $test,
+				'error_type' => $errorType
+			)
+		);
+
+	}
+
 	
 	// страница не существует
 	public static function notFound() {
