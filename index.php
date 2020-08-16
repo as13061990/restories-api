@@ -19,7 +19,7 @@ RouterLite::addRoute('/addContest', 'API/addContest');
 RouterLite::addRoute('/getContests', 'API/getContests');
 RouterLite::addRoute('/getDataContest', 'API/getDataContest');
 RouterLite::addRoute('/sendConditionStatus', 'API/sendConditionStatus');
-
+RouterLite::addRoute('/getConditionsStatuses', 'API/getConditionsStatuses');
 
 RouterLite::addRoute('/notFound', 'API/notFound');
 RouterLite::dispatch();

@@ -457,7 +457,10 @@ class API extends \Basic\Basic {
 
 		} else if ($_POST['type'] === 'user') {
 
-			$result = $db->select("SELECT * FROM contests WHERE user_id = {?}", array($_POST['user_id']));
+			$result = $db->select("SELECT contests.* FROM participants
+			LEFT JOIN contests ON contests.id = participants.contest_id
+			WHERE participants.user_id = {?} AND participants.done = {?}",
+			array($_POST['user_id'], true));
 
 		}
 		
@@ -568,7 +571,7 @@ class API extends \Basic\Basic {
 				'stickerWidth' => (int) $result[0]['stickerWidth'],
 				'valueVertical' => (int) $result[0]['valueVertical'],
 				'valueHorizontal' => (int) $result[0]['valueHorizontal'],
-				'valueAlignment' => (int) $result[0]['valueAlignment']
+				'valueAlignment' => $result[0]['valueAlignment']
 			);
 
 			$settingsPublicWall = array(
@@ -677,8 +680,46 @@ class API extends \Basic\Basic {
 		echo json_encode(
 			array(
 				'error' => $error,
-				'test' => $test,
 				'error_type' => $errorType
+			)
+		);
+
+	}
+
+
+	// статусы выполнения условий конкурсов
+	public static function getConditionsStatuses() {
+		
+		$db = parent::getDb();
+
+		parent::search($_POST['search'], $_POST['vk_user_id']);
+
+		$error = false;
+		$errorType = null;
+		$conditionStatus = array(
+			'conditionStories' => false,
+			'conditionWall' => false,
+			'conditionSubscribeToGroup' => false,
+			'conditionSubscribeToNotifications' => false
+		);
+
+		$user = $db->select("SELECT * FROM participants WHERE user_id = {?} AND contest_id = {?}",
+		array($_POST['vk_user_id'], $_POST['contest_id']));
+
+		if (is_array($user) && count($user) > 0) {
+
+			$conditionStatus['conditionStories'] = (boolean) $user[0]['conditionStories'];
+			$conditionStatus['conditionWall'] = (boolean) $user[0]['conditionWall'];
+			$conditionStatus['conditionSubscribeToGroup'] = (boolean) $user[0]['conditionSubscribeToGroup'];
+			$conditionStatus['conditionSubscribeToNotifications'] = (boolean) $user[0]['conditionSubscribeToNotifications'];
+
+		}
+		
+		echo json_encode(
+			array(
+				'error' => $error,
+				'error_type' => $errorType,
+				'conditionStatus' => $conditionStatus
 			)
 		);
 
