@@ -178,6 +178,77 @@ class Basic extends \DB\Db {
 	}
 
 
+	// вернуть победителей
+	public static function getWinners($contest) {
+
+		$db = parent::getDb();
+		$winners = array();
+		
+		// если уже ранее был завершен
+		if ((boolean) $contest['done']) {
+
+			$result = $db->select("SELECT user_id FROM participants
+			WHERE contest_id = {?} AND done = {?} AND place > 0
+			ORDER BY place ASC",
+			array($contest['id'], true));
+
+			$count = count($result);
+
+			for ($i = 0; $i < $count; $i++) {
+				array_push($winners, (int) $result[$i]['user_id']);
+			}
+
+		} else {
+
+			// если сейчас нужно завершить
+			$participants = $db->select("SELECT * FROM participants
+			WHERE contest_id = {?} AND done = {?}",
+			array($contest['id'], true));
+
+			if (count($participants) > 0) {
+				
+				$prizes = $db->select("SELECT COUNT(*) FROM names_prizes WHERE contest_id = {?}",
+				array($contest['id']))[0]['COUNT(*)'];
+
+				// берем рандомные индексы из массива участников
+				if ($prizes > count($participants)) {
+
+					$indexes = array_rand($participants, count($participants));
+
+				} else {
+
+					$indexes = array_rand($participants, $prizes);
+
+				}
+
+				// перемешиваем индексы
+				shuffle($indexes);
+
+				$count = count($indexes);
+
+				// добавляем результат и записываем в базу
+				for ($i = 0; $i < $count; $i++) {
+
+					$user = $participants[$indexes[$i]]['user_id'];
+					array_push($winners, (int) $user);
+					$place = $i + 1;
+
+					$db->query("UPDATE participants SET place = {?} WHERE contest_id = {?} AND user_id = {?}",
+					array($place, $contest['id'], $user));
+
+				}
+				
+			}
+
+			$db->query("UPDATE contests SET done = {?} WHERE id = {?}", array(true, $contest['id']));
+
+		}
+
+		return $winners;
+
+	}
+
+
 	// функция для тестового логирования в файл
 	public static function log($text) {
 		file_put_contents('logs.txt', $text."\n", FILE_APPEND);

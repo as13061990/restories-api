@@ -557,8 +557,7 @@ class API extends \Basic\Basic {
 
 			} else {
 
-				// НЕ ЗАБЫТЬ СДЕЛАТЬ ПОБЕДИТЕЛЕЙ !!!
-				$settingsContest['winners'] = array('тут будут победители', 'id победителя за второе', 'и т.д.');
+				$settingsContest['winners'] = parent::getWinners($result[0]);
 
 			}
 
@@ -703,18 +702,45 @@ class API extends \Basic\Basic {
 			'conditionSubscribeToNotifications' => false
 		);
 
-		$user = $db->select("SELECT * FROM participants WHERE user_id = {?} AND contest_id = {?}",
-		array($_POST['vk_user_id'], $_POST['contest_id']));
+		$contest = $db->select("SELECT * FROM contests WHERE id = {?}", array($_POST['contest_id']));
 
-		if (is_array($user) && count($user) > 0) {
+		if (is_array($contest) && count($contest) > 0) {
 
-			$conditionStatus['conditionStories'] = (boolean) $user[0]['conditionStories'];
-			$conditionStatus['conditionWall'] = (boolean) $user[0]['conditionWall'];
-			$conditionStatus['conditionSubscribeToGroup'] = (boolean) $user[0]['conditionSubscribeToGroup'];
-			$conditionStatus['conditionSubscribeToNotifications'] = (boolean) $user[0]['conditionSubscribeToNotifications'];
+			if (!(boolean) $contest[0]['conditionsPostStory']) $conditionStatus['conditionStories'] = null;
+			if (!(boolean) $contest[0]['conditionsPostWall']) $conditionStatus['conditionWall'] = null;
+			if (!(boolean) $contest[0]['conditionsSubscribeToGroup']) $conditionStatus['conditionSubscribeToGroup'] = null;
+			if (!(boolean) $contest[0]['conditionsSubscribeToNotifications']) $conditionStatus['conditionSubscribeToNotifications'] = null;
 
+			$user = $db->select("SELECT * FROM participants WHERE user_id = {?} AND contest_id = {?}",
+			array($_POST['vk_user_id'], $_POST['contest_id']));
+
+			if (is_array($user) && count($user) > 0) {
+
+				if ((boolean) $contest[0]['conditionsPostStory']) {
+					$conditionStatus['conditionStories'] = (boolean) $user[0]['conditionStories'];
+				}
+
+				if ((boolean) $contest[0]['conditionsPostWall']) {
+					$conditionStatus['conditionWall'] = (boolean) $user[0]['conditionWall'];
+				}
+				
+				if ((boolean) $contest[0]['conditionsSubscribeToGroup']) {
+					$conditionStatus['conditionSubscribeToGroup'] = (boolean) $user[0]['conditionSubscribeToGroup'];
+				}
+
+				if ((boolean) $contest[0]['conditionsSubscribeToNotifications']) {
+					$conditionStatus['conditionSubscribeToNotifications'] = (boolean) $user[0]['conditionSubscribeToNotifications'];
+				}
+
+			}
+
+		} else {
+
+			$error = true;
+			$errorType = 8;
+			
 		}
-		
+
 		echo json_encode(
 			array(
 				'error' => $error,
@@ -725,6 +751,52 @@ class API extends \Basic\Basic {
 
 	}
 
+	
+	// получить идентификаторы победителей конкурсов
+	public static function getContestWinners() {
+		
+		$db = parent::getDb();
+
+		$error = false;
+		$errorType = null;
+		$winners = array();
+		
+		$contest = $db->select("SELECT * FROM contests WHERE id = {?}", array($_POST['idContest']));
+
+		if (is_array($contest) && count($contest) > 0) {
+
+			$active = true;
+			$time = $contest[0]['dateEndContest'] . ' ' . $contest[0]['timeEndContest'];
+			$date = strtotime($time);
+
+			if (time() >= $date) $active = false;
+
+			if (!$active) {
+
+				$winners = parent::getWinners($contest[0]);
+
+			} else {
+
+				$error = true;
+				$errorType = 11;
+
+			}
+
+		} else {
+
+			$error = true;
+			$errorType = 8;
+
+		}
+
+		echo json_encode(
+			array(
+				'error' => $error,
+				'error_type' => $errorType,
+				'winners' => $winners
+			)
+		);
+	}
 	
 	// страница не существует
 	public static function notFound() {
