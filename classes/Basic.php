@@ -4,6 +4,18 @@ namespace Basic;
 
 class Basic extends \DB\Db {
 
+	// шаблонизатор
+	public static function loadView($strViewPath, $arrayOfData) {
+
+		extract($arrayOfData);
+		ob_start();
+		require($strViewPath);
+		$strView = ob_get_contents();
+		ob_end_clean();
+		return $strView;
+		
+	}
+
 
 	// рандомная строка
 	public static function generateRandomString($length = 10) {
